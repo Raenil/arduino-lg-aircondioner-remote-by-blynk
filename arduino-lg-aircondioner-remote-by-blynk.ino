@@ -15,8 +15,8 @@ char auth[] = "";
 //Blynk setting-----------------------------------------------------------------
 
 
-int ON = 1;
-int OFF = 0;
+const int ON = 1;
+const int OFF = 0;
 int ONOFF;
 int ONOFFOLD;
 int SendCheck = 1;
@@ -25,7 +25,7 @@ int wind;
 String hextemp = String(0, HEX);
 String hexwind = String(0, HEX);
 String hexbase = String(8808, HEX);
-int temporwind = 0;
+int First = 0;
 
 String hexcode = String(0X0000000, HEX);
 String hexchecksum = String(0X00, HEX);
@@ -43,74 +43,19 @@ void setup()
   Serial.begin(9600);
   Blynk.begin(auth, "blynk-cloud.com", 80, arduino_ip, dns_ip, gateway_ip, subnet_mask, arduino_mac);
 }
-//ONOFF
-BLYNK_WRITE(V0)
+
+BLYNK_CONNECTED()
 {
-  ONOFF = param.asInt();
-  Serial.print("V0 =: ");
-  Serial.println(ONOFF);
-  SendCheck = 0;
+  Serial.println("BLYNK_CONNECTED()");
+  Serial.println("Call V1");
+  Blynk.syncVirtual(V1); //Call V1
+  Serial.println("Call V2");
+  Blynk.syncVirtual(V2); //Call V2
 }
 
-//Temperature
-BLYNK_WRITE(V1)
-{
-  if (temporwind != 2)
-  {
-    temporwind = 1;
-    Serial.println("TemperatureFirst");
-  }
-  Serial.println(temporwind);
-  temperature = param.asInt();
-  Serial.print("temperature = ");
-  Serial.println(temperature);
-  hextemp = String(temperature - 15, HEX);
-  Serial.print("HexValue = ");
-  Serial.println(hextemp);
-  if (temporwind == 1)
-  {
-    Blynk.syncVirtual(V2);
-    SendCheck = 0;
-    temporwind = 0;
-  }
-}
-//Wind
-BLYNK_WRITE(V2)
-{
-  if (temporwind != 1)
-  {
-    temporwind = 2;
-    Serial.println("WindFirst");
-  }
-  Serial.println(temporwind);
-  wind = param.asInt();
-  Serial.print("wind = ");
-  Serial.println(wind);
-  switch (wind)
-  {
-    case 1:
-      hexwind = String(0, HEX);
-      break;
-    case 2:
-      hexwind = String(2, HEX);
-      break;
-    case 3:
-      hexwind = String(4, HEX);
-      break;
-  }
-  Serial.print("hexwind = ");
-  Serial.println(hexwind);
-  if (temporwind == 2)
-  {
-    Blynk.syncVirtual(V1);
-    SendCheck = 0;
-    temporwind = 0;
-  }
-}
 
-void loop()
+void hexcalculate()
 {
-  Blynk.run();
   if (SendCheck == 0)
   {
     if (ONOFF != ONOFFOLD)
@@ -141,7 +86,32 @@ void loop()
     }
     else
     {
-      //Control
+      //temp
+      Serial.print("temperature = ");
+      Serial.println(temperature);
+      hextemp = String(temperature - 15, HEX);
+      Serial.print("HexValue = ");
+      Serial.println(hextemp);
+
+      //wind
+      Serial.print("wind = ");
+      Serial.println(wind);
+      switch (wind)
+      {
+        case 1:
+          hexwind = String(0, HEX);
+          break;
+        case 2:
+          hexwind = String(2, HEX);
+          break;
+        case 3:
+          hexwind = String(4, HEX);
+          break;
+      }
+
+      Serial.print("hexwind = ");
+      Serial.println(hexwind);
+
 
       hexcode = "8808" + hextemp + hexwind;
       Serial.print("hexcode = ");
@@ -179,4 +149,58 @@ void loop()
       SendCheck = 1;
     }
   }
+}
+
+//ONOFF
+BLYNK_WRITE(V0)
+{
+  ONOFF = param.asInt();
+  Serial.print("V0 =: ");
+  Serial.println(ONOFF);
+  SendCheck = 0;
+}
+
+//Temperature
+BLYNK_WRITE(V1)
+{
+  Serial.println("BLYNK_WRITE(V1)");
+  temperature = param.asInt();
+  if (First < 2)
+  {
+    Serial.println("Firsttemp");
+    First ++;
+  }
+  else
+  {
+    SendCheck = 0;
+  }
+}
+
+//Wind
+BLYNK_WRITE(V2)
+{
+  Serial.println("BLYNK_WRITE(V2)");
+  wind = param.asInt();
+  if (First < 2)
+  {
+    Serial.println("Firstwind");
+    First ++;
+  }
+  else
+  {
+    SendCheck = 0;
+  }
+}
+
+void hexsand()
+{
+
+}
+
+
+void loop()
+{
+  Blynk.run();
+
+  timer.setInterval(1000L, hexcalculate);
 }
